@@ -1,0 +1,13 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Local Environment
+.venv/
+.env
+
+# Credentials (NEVER upload this to GitHub)
+creds/
+
+# Data (Not needed, the AI reads from Pinecone)
+data/

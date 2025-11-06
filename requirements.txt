@@ -1,0 +1,8 @@
+flask==3.0.3
+python-dotenv==1.0.1
+pinecone==7.3.0
+cohere==5.19.0
+groq==0.32.0
+pypdf==6.1.2
+gspread==6.1.2
+google-auth==2.30.0
