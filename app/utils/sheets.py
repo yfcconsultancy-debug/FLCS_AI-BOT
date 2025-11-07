@@ -1,5 +1,5 @@
 # app/utils/sheets.py
-import os, datetime
+import os, datetime, json # <--- ADD IMPORT JSON
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -12,20 +12,47 @@ _gc = None
 # --- Helper ---
 def _get_client():
     global _creds, _gc
-    if not os.path.isfile(SA_PATH):
-        print(f"[Sheets DEBUG] Service Account not found at {SA_PATH}")
-        return None
-    
     if _gc: return _gc
+    
+    # --- NEW VERCEL LOGIC ---
+    # 1. Try to load from Vercel Environment Variable
+    creds_json_str = os.getenv("GOOGLE_CREDENTIALS")
+    if creds_json_str:
+        try:
+            print("[Sheets DEBUG] Found GOOGLE_CREDENTIALS. Loading from env var.")
+            creds_info = json.loads(creds_json_str)
+            _creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+        except Exception as e:
+            print(f"[Sheets DEBUG] CRITICAL: Failed to parse GOOGLE_CREDENTIALS: {e}")
+            return None
+    
+    # 2. Fallback to local file (for your own computer)
+    elif os.path.isfile(SA_PATH):
+        try:
+            print("[Sheets DEBUG] Loading from local file: {SA_PATH}")
+            _creds = Credentials.from_service_account_file(SA_PATH, scopes=SCOPES)
+        except Exception as e:
+            print(f"[Sheets DEBUG] CRITICAL: Failed to load from local file: {e}")
+            return None
+            
+    # 3. If neither, fail
+    else:
+        print(f"[Sheets DEBUG] CRITICAL: No credentials found.")
+        return None
+
+    # --- Authorize gspread ---
     try:
-        print(f"[Sheets DEBUG] Authorizing with {SA_PATH}...")
-        _creds = Credentials.from_service_account_file(SA_PATH, scopes=SCOPES)
         _gc = gspread.authorize(_creds)
         print(f"[Sheets DEBUG] gspread client authorized.")
         return _gc
     except Exception as e:
         print(f"[Sheets DEBUG] CRITICAL: Error authorizing gspread: {e}")
         return None
+        
+#
+# ... ALL OTHER FUNCTIONS ( _write_to_sheet, write_feedback, etc.) ...
+# ... ARE EXACTLY THE SAME. NO OTHER CHANGES NEEDED IN THIS FILE. ...
+#
 
 def _write_to_sheet(sheet_id, tab_name, data_row):
     try:
