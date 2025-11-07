@@ -230,3 +230,53 @@ body {
 .send-button:hover {
     background-color: var(--brand-blue-dark);
 }
+/* --- NEW: Expanded State --- */
+.chat-window.expanded {
+    bottom: 55px;
+    right: 50px;
+    width: 95vw;
+    max-width: 1200px; /* Max size on large monitors */
+    height: 90vh;
+    max-height: 90vh;
+}
+/* This helper class is used by JS */
+.hidden {
+    display: none !important;
+}
+
+/* --- Header --- */
+/* (This block already exists, just make sure flex-shrink is added) */
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background-color: var(--brand-blue);
+    color: var(--text-light);
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+/* NEW: Controls Group */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* UPDATED: Style for ALL header buttons */
+/* (This replaces your old .chat-close rule) */
+.chat-close,
+.chat-toggle-size {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    padding: 0;
+    line-height: 0; /* Helps align SVGs */
+}
+.chat-close:hover,
+.chat-toggle-size:hover {
+    opacity: 1;
+}

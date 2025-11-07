@@ -9,6 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const input = document.getElementById("message-input");
     const typing = document.getElementById("typing-indicator");
     const qbtns = document.getElementById("quick-buttons");
+    
+    // --- NEW: Get expand/minimize buttons ---
+    const expandBtn = document.getElementById("expand-chat");
+    const minimizeBtn = document.getElementById("minimize-chat");
 
     let openedOnce = false;
 
@@ -16,6 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
     launch?.addEventListener("click", toggleChatWindow);
     closeBtn?.addEventListener("click", toggleChatWindow);
     form?.addEventListener("submit", handleFormSubmit);
+    
+    // --- NEW: Listeners for size toggle ---
+    expandBtn?.addEventListener("click", toggleSize);
+    minimizeBtn?.addEventListener("click", toggleSize);
+
 
     /**
      * Toggles the chat window's visibility and tracks the first view.
@@ -31,11 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // --- First-Time Open Logic ---
             if (!openedOnce) {
-                // 1. Send "hello" to get the main menu
                 send("hello", true); 
                 openedOnce = true;
                 
-                // 2. Track this view in our analytics
                 try {
                     fetch("/api/track_view", { 
                         method: "POST",
@@ -49,7 +56,19 @@ document.addEventListener("DOMContentLoaded", () => {
             // Close the window
             win.classList.add("hidden");
             win.setAttribute("aria-hidden", "true");
+            
+            // --- NEW: Reset to small size when closed ---
+            if (win.classList.contains("expanded")) {
+                toggleSize();
+            }
         }
+    }
+    
+    // --- NEW: Function to toggle window size ---
+    function toggleSize() {
+        win.classList.toggle("expanded");
+        expandBtn.classList.toggle("hidden");
+        minimizeBtn.classList.toggle("hidden");
     }
 
     /**
@@ -119,7 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function send(text, isInitial = false) {
         if (!text?.trim()) return;
 
-        // Add user message to UI (unless it's the initial hidden "hello")
+        // Add user message to UI
         if (!isInitial) {
             addMsg("user", text);
         }
