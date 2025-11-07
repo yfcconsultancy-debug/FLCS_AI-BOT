@@ -234,7 +234,7 @@ body {
 .chat-window.expanded {
     bottom: 55px;
     right: 50px;
-    width: 95vw;
+    width: 90vw;
     max-width: 1200px; /* Max size on large monitors */
     height: 90vh;
     max-height: 90vh;
