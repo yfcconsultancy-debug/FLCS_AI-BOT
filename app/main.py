@@ -1,36 +1,141 @@
+# # app/main.py
+# import os, sys
+# from flask import Flask, render_template
+# from dotenv import load_dotenv
+
+
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# sys.path.insert(0, BASE_DIR)
+# load_dotenv(os.path.join(BASE_DIR, ".env")) 
+
+# from app.routes.chat import chat_bp
+# from app.routes.health import health_bp
+# from app.routes.analytics import analytics_bp # <-- IMPORT NEW BLUEPRINT
+
+# app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "app", "templates"),
+#             static_folder=os.path.join(BASE_DIR, "app", "static"),
+#             static_url_path="/static")
+
+# # --- Set Secret Key for Sessions ---
+# app.secret_key = os.getenv("FLASK_SECRET_KEY")
+# if not app.secret_key:
+#     print("CRITICAL: FLASK_SECRET_KEY is not set. Using unsafe default.")
+#     app.secret_key = "default_unsafe_key_for_dev"
+
+# # Blueprints
+# app.register_blueprint(chat_bp, url_prefix="/api")
+# app.register_blueprint(health_bp, url_prefix="/api")
+# app.register_blueprint(analytics_bp, url_prefix="/api") # <-- REGISTER NEW BLUEPRINT
+# print("✅ Chat, Health, & Analytics blueprints registered.") # <-- UPDATED PRINT
+
+# @app.route("/")
+# def index():
+#     return render_template("index.html")
+
+# if __name__ == "__main__":
+#     print("🚀 Starting FLCS Chatbot (development server)...")
+#     app.run(debug=True, host="127.0.0.1", port=5000)
 # app/main.py
-import os, sys
-from flask import Flask, render_template
+import os
+import sys
+import traceback
+from flask import Flask, render_template, request
 from dotenv import load_dotenv
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
+# --- Add Project Root to Path ---
+# This ensures modules like 'app' can be found
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, BASE_DIR)
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 load_dotenv(os.path.join(BASE_DIR, ".env")) 
+print(f"Added {BASE_DIR} to sys.path")
 
-from app.routes.chat import chat_bp
-from app.routes.health import health_bp
-from app.routes.analytics import analytics_bp # <-- IMPORT NEW BLUEPRINT
+# --- Import Blueprints ---
+# We import these after setting the path
+try:
+    from app.routes.chat import chat_bp
+    from app.routes.health import health_bp
+    from app.routes.analytics import analytics_bp
+    blueprints_loaded = True
+except ImportError as e:
+    print(f"CRITICAL ERROR: Failed to import blueprints: {e}")
+    traceback.print_exc()
+    blueprints_loaded = False
 
-app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "app", "templates"),
+# --- Flask App Initialization ---
+app = Flask(__name__, 
+            template_folder=os.path.join(BASE_DIR, "app", "templates"),
             static_folder=os.path.join(BASE_DIR, "app", "static"),
             static_url_path="/static")
 
-# --- Set Secret Key for Sessions ---
+print("Flask app created.")
+
+# --- CORS Configuration (for API Access) ---
+# Define the list of websites allowed to call your API
+# Replace with your client's actual website domain
+allowed_origins = [
+    "https://www.the-client-website.com",  # Client's production site
+    "http://localhost:3000",             # Common React dev port
+    "http://localhost:8000"              # Common Python/static dev port
+]
+
+CORS(app, resources={
+    # Apply CORS rules only to routes starting with /api/
+    r"/api/*": {
+        "origins": allowed_origins
+    }
+})
+print(f"CORS enabled for API routes, allowing specific origins.")
+
+# --- Flask Secret Key ---
+# Required for Flask 'session' functionality
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 if not app.secret_key:
-    print("CRITICAL: FLASK_SECRET_KEY is not set. Using unsafe default.")
-    app.secret_key = "default_unsafe_key_for_dev"
+    print("CRITICAL WARNING: FLASK_SECRET_KEY is not set. Using unsafe default. Sessions will not be secure.")
+    app.secret_key = "default_unsafe_key_for_dev_only"
 
-# Blueprints
-app.register_blueprint(chat_bp, url_prefix="/api")
-app.register_blueprint(health_bp, url_prefix="/api")
-app.register_blueprint(analytics_bp, url_prefix="/api") # <-- REGISTER NEW BLUEPRINT
-print("✅ Chat, Health, & Analytics blueprints registered.") # <-- UPDATED PRINT
+# --- Rate Limiter Setup (Security) ---
+def get_ipaddr():
+    """Get the user's real IP address, accounting for Render's headers."""
+    # 'X-Forwarded-For' is the standard header for proxies like Render
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        # The header can be a list (client, proxy1, proxy2), get the first one
+        return forwarded_for.split(',')[0].strip()
+    # Fallback for local testing
+    return get_remote_address()
 
+limiter = Limiter(
+    get_ipaddr,  # Use our custom function to get the real IP
+    app=app,
+    default_limits=["200 per day", "50 per hour"], # General limits
+    storage_uri="memory://" # Store limits in memory
+)
+print("Flask-Limiter initialized.")
+
+# --- Register Blueprints ---
+if blueprints_loaded:
+    app.register_blueprint(chat_bp, url_prefix="/api")
+    app.register_blueprint(health_bp, url_prefix="/api")
+    app.register_blueprint(analytics_bp, url_prefix="/api")
+    
+    # Apply a stricter rate limit specifically to the chat API
+    limiter.limit("30 per 5 minutes")(chat_bp)
+    print("✅ Chat, Health, & Analytics blueprints registered.")
+else:
+    print("❌ FAILED to register blueprints due to import error.")
+
+# --- Main Route ---
 @app.route("/")
 def index():
+    """Serves the main index.html page which contains the chat widget."""
     return render_template("index.html")
 
+# --- Run Application ---
 if __name__ == "__main__":
     print("🚀 Starting FLCS Chatbot (development server)...")
+    # debug=True enables auto-reloading on code changes
     app.run(debug=True, host="127.0.0.1", port=5000)
