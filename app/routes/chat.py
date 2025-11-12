@@ -16,6 +16,7 @@
     
 #     return jsonify(result), 200
 # app/routes/chat.py
+# app/routes/chat.py
 from flask import Blueprint, request, jsonify, session
 from app.chatbot.core import process_message
 from app.utils import sheets # Import sheets for query logging
@@ -25,21 +26,24 @@ chat_bp = Blueprint("chat", __name__)
 
 @chat_bp.route("/chat", methods=["POST"])
 def chat():
+    """
+    Handles incoming chat queries using the session-based state machine.
+    This version does NOT have an API key check.
+    """
     try:
         data = request.get_json(silent=True) or {}
         q = (data.get("query") or "").strip()
         if not q:
             return jsonify({"error": "query is required"}), 400
         
-        # Log the raw query *before* processing
-        # We can move this inside core.py as well, but here is fine
-        if q.lower() not in ["hi", "hello", "hey"]: # Don't log simple hellos
+        # Log the query to Google Sheets (from your sheets.py)
+        if q.lower() not in ["hi", "hello", "hey"]: 
              sheets.write_query(q)
         
-        # Pass query and the user's session to the core logic
+        # Pass the query AND the user's session to the core logic
         result_dict = process_message(q, session)
         
-        # The core.py file returns a dictionary, which we send as JSON
+        # Return the JSON response { "markdown": "...", "buttons": [...] }
         return jsonify(result_dict), 200
         
     except Exception as e:
